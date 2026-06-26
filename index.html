@@ -95,7 +95,9 @@
   .hnote{font-size:12px;color:#b8cabf;margin-top:6px;padding-left:40px}
   .bets{margin-top:11px;border-top:1px dashed var(--line);padding-top:10px}
   .betsTitle{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-bottom:6px}
-  .betMain{font-size:13.5px;font-weight:800;color:#fbe7b0;background:rgba(231,182,76,.10);border:1px solid rgba(231,182,76,.30);border-radius:9px;padding:9px 11px;line-height:1.45}
+  .betLabel{display:inline-block;font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;margin-right:7px;background:rgba(255,255,255,.14);color:#e9f0ec;vertical-align:middle}
+  .betMain{font-size:13px;font-weight:700;color:#fbe7b0;background:rgba(231,182,76,.10);border:1px solid rgba(231,182,76,.30);border-radius:9px;padding:9px 11px;line-height:1.5}
+  .betBox{font-size:13px;font-weight:700;color:#bff0d6;background:rgba(34,192,125,.09);border:1px solid rgba(34,192,125,.28);border-radius:9px;padding:9px 11px;line-height:1.5;margin-top:6px}
   .betSub{font-size:12.5px;color:#cdded6;margin-top:7px}
   .betSub b{color:#e9f0ec}
   .detail{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
@@ -117,6 +119,7 @@
     var tagColor = { "軸":"gold", "◎":"green", "○":"blue", "△":"muted", "▲":"red" };
     function el(tag, cls, txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
     function betRow(label, text){ var d=el('div','betSub'); d.appendChild(el('b',null,label+'：')); d.appendChild(document.createTextNode(text)); return d; }
+    function labeledBet(label, text, cls){ var d=el('div',cls); d.appendChild(el('span','betLabel',label)); d.appendChild(document.createTextNode(text)); return d; }
     var root = document.getElementById('app');
 
     var head = el('header','head');
@@ -198,29 +201,29 @@
       });
       c.appendChild(hl);
 
-      // おすすめ買い目（本線は常時表示、妙味/配分/狙いは展開時）
+      // おすすめ買い目：本線(最適券種)＋5頭BOX を常時表示、配分/狙いは展開時
       if(r.bets){
         var b = el('div','bets');
         b.appendChild(el('div','betsTitle', '💴 おすすめ買い目' + (r.bets.stance ? '（'+r.bets.stance+'）' : '')));
-        if(r.bets.main) b.appendChild(el('div','betMain', r.bets.main));
+        if(r.bets.pick) b.appendChild(labeledBet('本線', r.bets.pick, 'betMain'));
+        if(r.bets.box5) b.appendChild(labeledBet('5頭BOX', r.bets.box5, 'betBox'));
         c.appendChild(b);
       }
 
       var detail = el('div','detail');
       if(r.bets){
-        if(r.bets.value) detail.appendChild(betRow('妙味', r.bets.value));
-        if(r.bets.alloc) detail.appendChild(betRow('配分', r.bets.alloc));
-        if(r.bets.note)  detail.appendChild(betRow('狙い', r.bets.note));
+        if(r.bets.alloc && r.bets.alloc !== '-') detail.appendChild(betRow('配分', r.bets.alloc));
+        if(r.bets.note) detail.appendChild(betRow('狙い', r.bets.note));
       }
       if(r.ev) detail.appendChild(el('div','ev', '想定配当: '+r.ev));
       if(r.memo) detail.appendChild(el('div','memo', '🏁 '+r.memo));
       c.appendChild(detail);
 
-      var hint = el('div','hint','タップで買い目の詳細・根拠 ▾');
+      var hint = el('div','hint','タップで配分・根拠 ▾');
       c.appendChild(hint);
       c.addEventListener('click', function(){
         var open = c.classList.toggle('open');
-        hint.textContent = open ? '閉じる ▴' : 'タップで買い目の詳細・根拠 ▾';
+        hint.textContent = open ? '閉じる ▴' : 'タップで配分・根拠 ▾';
       });
       return c;
     }
