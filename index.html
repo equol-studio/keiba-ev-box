@@ -100,6 +100,14 @@
   .betBox{font-size:13px;font-weight:700;color:#bff0d6;background:rgba(34,192,125,.09);border:1px solid rgba(34,192,125,.28);border-radius:9px;padding:9px 11px;line-height:1.5;margin-top:6px}
   .betSub{font-size:12.5px;color:#cdded6;margin-top:7px}
   .betSub b{color:#e9f0ec}
+  .odds{margin-top:11px;border-top:1px dashed var(--line);padding-top:9px}
+  .oddsTitle{font-size:11px;font-weight:800;color:var(--blue);letter-spacing:.03em;margin-bottom:5px}
+  .oRow{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .oRow.oHead{font-size:10px;font-weight:800;color:var(--muted)}
+  .oPop{flex:0 0 30px;text-align:center;color:#cfe0d8;font-weight:700}
+  .oSel{flex:1;min-width:0;color:#e9f0ec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oWin{flex:0 0 52px;text-align:right;color:#fbe7b0;font-weight:700}
+  .oPlace{flex:0 0 70px;text-align:right;color:#bff0d6;font-weight:700}
   .detail{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
   .ev{font-size:12.5px;color:#e7d9b3;margin-bottom:6px}
   .memo{font-size:12.5px;color:#cdded6}
@@ -148,6 +156,14 @@
       var d=el('div','gcard '+cls); d.appendChild(el('h3',null,title));
       var ul=el('ul'); (items||[]).forEach(function(it){ ul.appendChild(el('li',null,it)); }); d.appendChild(ul);
       return d;
+    }
+    function oddsRow(pop, sel, win, place, isHead){
+      var r=el('div','oRow'+(isHead?' oHead':''));
+      r.appendChild(el('span','oPop', pop));
+      r.appendChild(el('span','oSel', sel));
+      r.appendChild(el('span','oWin', win));
+      r.appendChild(el('span','oPlace', place));
+      return r;
     }
     var root = document.getElementById('app');
 
@@ -265,6 +281,16 @@
         if(r.bets.pick) b.appendChild(labeledBet('本線', r.bets.pick, 'betMain'));
         if(r.bets.box5) b.appendChild(labeledBet('5頭BOX', r.bets.box5, 'betBox'));
         c.appendChild(b);
+      }
+
+      if(r.odds){
+        var od = el('div','odds');
+        od.appendChild(el('div','oddsTitle', '📸 オッズ' + (r.odds.asOf ? '（'+r.odds.asOf+'）' : '')));
+        od.appendChild(oddsRow('人気','馬','単勝','複勝', true));
+        (r.odds.rows||[]).forEach(function(o){
+          od.appendChild(oddsRow(o.pop!=null?o.pop:'', o.sel||'', o.win!=null?o.win:'—', o.place!=null?o.place:'—', false));
+        });
+        c.appendChild(od);
       }
 
       var detail = el('div','detail');
