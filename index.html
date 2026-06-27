@@ -33,20 +33,24 @@
   }
   .wrap{
     max-width:600px;margin:0 auto;
-    padding:calc(env(safe-area-inset-top) + 18px) calc(env(safe-area-inset-right) + 16px)
+    padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px)
             calc(env(safe-area-inset-bottom) + 40px) calc(env(safe-area-inset-left) + 16px);
   }
-  .head{margin-bottom:14px}
-  .title{font-size:24px;font-weight:800;letter-spacing:.02em;margin:0 0 6px}
+  .head{margin-bottom:6px}
+  .title{font-size:23px;font-weight:800;letter-spacing:.02em;margin:0 0 6px}
   .headline{
     display:inline-block;font-size:12.5px;font-weight:700;color:#bff0d6;
     background:rgba(34,192,125,.13);border:1px solid rgba(34,192,125,.3);
     padding:4px 10px;border-radius:999px;margin-bottom:6px;
   }
   .updated{font-size:12px;color:var(--muted)}
+  .searchbar{position:sticky;top:env(safe-area-inset-top);z-index:10;display:flex;gap:8px;margin:8px 0 4px;padding:8px 0 10px;background:var(--bg)}
+  .searchbar input{flex:1;font-size:16px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+  .searchbar input:focus{border-color:rgba(34,192,125,.55)}
+  .searchbar button{flex:0 0 auto;font-size:13px;font-weight:700;color:#cfe0d8;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:0 13px}
   .note{
     font-size:13px;color:#dfe9e3;background:var(--card);border:1px solid var(--line);
-    border-left:3px solid var(--gold);border-radius:10px;padding:10px 12px;margin:14px 0;
+    border-left:3px solid var(--gold);border-radius:10px;padding:10px 12px;margin:8px 0 0;
   }
   .block{margin-top:22px}
   .blockTitle{
@@ -67,7 +71,7 @@
     box-shadow:0 6px 18px rgba(0,0,0,.25);
   }
   .cardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-  .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+  .meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
   .venue{font-size:11px;font-weight:800;color:#06120d;background:var(--green);padding:2px 8px;border-radius:6px}
   .rno{font-size:12px;font-weight:700;color:#cfe0d8}
   .post{font-size:11.5px;color:var(--muted)}
@@ -150,6 +154,8 @@
   .scConf{font-size:10px;color:var(--gold);letter-spacing:1px}
   .pending{font-size:12.5px;color:#cdded6;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
   .disclaimer{font-size:11px;color:var(--muted);margin-top:22px;text-align:center;line-height:1.6}
+  .noRes{font-size:13px;color:var(--muted);text-align:center;padding:30px 0}
+  .hidden{display:none !important}
 </style>
 </head>
 <body>
@@ -185,10 +191,19 @@
     head.appendChild(el('div','updated', '更新: ' + (D.updated||'-')));
     root.appendChild(head);
 
-    if(D.note) root.appendChild(el('div','note', D.note));
+    // 検索バー
+    var sb = el('div','searchbar');
+    var input = el('input'); input.id='q'; input.type='search';
+    input.setAttribute('placeholder','検索（馬名・騎手・レース・場名…）');
+    input.setAttribute('autocomplete','off'); input.setAttribute('autocorrect','off'); input.setAttribute('autocapitalize','off');
+    var clr = el('button',null,'クリア');
+    sb.appendChild(input); sb.appendChild(clr);
+    root.appendChild(sb);
+
+    if(D.note) root.appendChild(el('div','note meta', D.note));
 
     if(D.policy && D.policy.length){
-      var sec = el('section','block');
+      var sec = el('section','block meta');
       sec.appendChild(el('h2','blockTitle','今週の方針'));
       var grid = el('div','policy');
       D.policy.forEach(function(p){
@@ -202,7 +217,7 @@
     }
 
     if(D.strategy){
-      var s = el('section','strategy');
+      var s = el('section','strategy meta');
       s.appendChild(el('h2',null, D.strategy.title || '買い方の方針'));
       if(D.strategy.points && D.strategy.points.length){
         var ul = el('ul');
@@ -217,7 +232,7 @@
       var order=[], byDay={};
       races.forEach(function(r){ var d=r.day||'-'; if(!byDay[d]){byDay[d]=[];order.push(d);} byDay[d].push(r); });
       order.forEach(function(day){
-        var sec = el('section','block');
+        var sec = el('section','block grp');
         sec.appendChild(el('h2','blockTitle', day));
         byDay[day].forEach(function(r){ sec.appendChild(card(r)); });
         root.appendChild(sec);
@@ -226,13 +241,15 @@
 
     if(D.scan){
       var sc = D.scan;
-      var ssec = el('section','block');
+      var ssec = el('section','block grp');
       ssec.appendChild(el('h2','blockTitle', '📋 ' + (sc.title||'全レース判定')));
       if(sc.intro) ssec.appendChild(el('div','kIntro', sc.intro));
       (sc.days||[]).forEach(function(d){
-        ssec.appendChild(el('div','kDay', d.day));
+        var grp = el('div','kGroup grp');
+        grp.appendChild(el('div','kDay', d.day));
         (d.races||[]).forEach(function(rc){
-          var row = el('div','scRow');
+          var row = el('div','scRow srch');
+          row.dataset.s = [rc.no, rc.cond, rc.note, rc.call].join(' ').toLowerCase();
           row.appendChild(el('span','scNo', rc.no));
           var mid = el('div','scMid');
           mid.appendChild(el('div','scCond', rc.cond));
@@ -243,15 +260,16 @@
           right.appendChild(el('div','scCall '+cc, rc.call||''));
           if(rc.conf) right.appendChild(el('div','scConf', stars(rc.conf)));
           row.appendChild(right);
-          ssec.appendChild(row);
+          grp.appendChild(row);
         });
+        ssec.appendChild(grp);
       });
       root.appendChild(ssec);
     }
 
     if(D.korogashi){
       var k = D.korogashi;
-      var ksec = el('section','block');
+      var ksec = el('section','block grp');
       ksec.appendChild(el('h2','blockTitle', '🎲 ' + (k.title||'複勝転がし')));
       if(k.intro) ksec.appendChild(el('div','kIntro', k.intro));
       if(k.guide){
@@ -262,30 +280,69 @@
         ksec.appendChild(g);
       }
       (k.days||[]).forEach(function(d){
-        ksec.appendChild(el('div','kDay', d.day));
+        var grp = el('div','kGroup grp');
+        grp.appendChild(el('div','kDay', d.day));
         (d.legs||[]).forEach(function(lg){
-          var row = el('div','kLeg');
+          var row = el('div','kLeg srch');
+          row.dataset.s = [lg.no, lg.cond, lg.anchor].join(' ').toLowerCase();
           row.appendChild(el('span','kNo', lg.no));
           var mid = el('div','kMid');
           mid.appendChild(el('div','kCond', lg.cond));
           if(lg.anchor) mid.appendChild(el('div','kAnchor', '軸: '+lg.anchor));
           row.appendChild(mid);
           if(lg.fit) row.appendChild(el('span','kFit fit-'+fitClass(lg.fit), lg.fit));
-          ksec.appendChild(row);
+          grp.appendChild(row);
         });
+        ksec.appendChild(grp);
       });
       if(k.note) ksec.appendChild(el('div','kNote', k.note));
       root.appendChild(ksec);
     }
 
-    if(D.pending) root.appendChild(el('div','pending', D.pending));
-    if(D.disclaimer) root.appendChild(el('div','disclaimer', D.disclaimer));
+    if(D.pending) root.appendChild(el('div','pending meta', D.pending));
+    if(D.disclaimer) root.appendChild(el('div','disclaimer meta', D.disclaimer));
+
+    var noRes = el('div','noRes hidden','該当なし');
+    root.appendChild(noRes);
+
+    // 検索フィルタ
+    function applyFilter(){
+      var q = (input.value||'').trim().toLowerCase();
+      var metas = root.querySelectorAll('.meta');
+      var srch = root.querySelectorAll('.srch');
+      var grps = root.querySelectorAll('.grp');
+      if(!q){
+        metas.forEach(function(m){ m.classList.remove('hidden'); });
+        srch.forEach(function(s){ s.classList.remove('hidden'); });
+        grps.forEach(function(gr){ gr.classList.remove('hidden'); });
+        noRes.classList.add('hidden');
+        return;
+      }
+      metas.forEach(function(m){ m.classList.add('hidden'); });
+      var any = false;
+      srch.forEach(function(s){
+        var match = (s.dataset.s||'').indexOf(q) >= 0;
+        s.classList.toggle('hidden', !match);
+        if(match) any = true;
+      });
+      grps.forEach(function(gr){
+        gr.classList.toggle('hidden', !gr.querySelector('.srch:not(.hidden)'));
+      });
+      noRes.classList.toggle('hidden', any);
+    }
+    input.addEventListener('input', applyFilter);
+    clr.addEventListener('click', function(){ input.value=''; applyFilter(); input.focus(); });
 
     function card(r){
-      var c = el('article','card');
+      var c = el('article','card srch');
+      var stext = [r.venue, r.no, r.name, r.course, r.verdict]
+        .concat((r.box||[]).map(function(h){ return (h.num||'')+' '+(h.name||'')+' '+(h.note||''); }))
+        .concat([ r.bets?r.bets.pick:'', r.bets?r.bets.box5:'', r.bets?r.bets.note:'', r.memo||'', r.verdictNote||'' ])
+        .join(' ').toLowerCase();
+      c.dataset.s = stext;
       var top = el('div','cardTop');
       var left = el('div','cardHead');
-      var meta = el('div','meta');
+      var meta = el('div','meta-row');
       if(r.venue) meta.appendChild(el('span','venue', r.venue));
       if(r.no) meta.appendChild(el('span','rno', r.no));
       if(r.post) meta.appendChild(el('span','post', '発走 '+r.post));
