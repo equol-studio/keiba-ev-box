@@ -22,8 +22,10 @@ async function getText(url) {
   const res = await fetch(url, { headers: { 'User-Agent': UA, 'Referer': 'https://race.netkeiba.com/', 'Accept-Language': 'ja' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  let t = new TextDecoder('euc-jp').decode(buf);
-  if (!/函館|レース|netkeiba/i.test(t)) t = buf.toString('utf-8'); // フォールバック
+  let t = buf.toString('utf-8'); // netkeibaはUTF-8
+  if (!/出馬表|競走|未勝利|新馬|レース情報/.test(t)) {
+    try { const e = new TextDecoder('euc-jp').decode(buf); if (/出馬表|競走|未勝利|新馬/.test(e)) t = e; } catch (_) {}
+  }
   return t;
 }
 
@@ -88,7 +90,8 @@ async function main() {
         const sh = await getText(`https://race.netkeiba.com/race/shutuba.html?race_id=${id}`);
         const p = parseShutuba(sh, id);
         const j = judge(p);
-        const cond = [p.cls, p.dist, p.field ? `${p.field}頭` : ''].filter(Boolean).join('・');
+        const special = /特別|ステークス|記念|杯|賞|カップ|Ｓ/.test(p.name) ? p.name.replace(/[(（].*$/, '').trim() : '';
+        const cond = [special, p.cls, p.dist, p.field ? `${p.field}頭` : ''].filter(Boolean).join('・');
         races.push({ no: `${p.R}R`, cond: cond || p.name || `${p.R}R`, call: j.call, conf: j.conf, note: j.note });
       } catch (e) { console.error(`shutuba ${id}: ${e.message}`); }
       await sleep(350);
