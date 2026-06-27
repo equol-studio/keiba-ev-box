@@ -161,9 +161,11 @@
 <body>
   <main class="wrap" id="app"></main>
   <script src="data.js"></script>
+  <script src="auto.js"></script>
   <script>
   (function(){
     var D = window.KEIBA_DATA || {};
+    var A = (window.KEIBA_AUTO && window.KEIBA_AUTO.scan) ? window.KEIBA_AUTO : null;
     var tagColor = { "軸":"gold", "◎":"green", "○":"blue", "△":"muted", "▲":"red" };
     function el(tag, cls, txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
     function betRow(label, text){ var d=el('div','betSub'); d.appendChild(el('b',null,label+'：')); d.appendChild(document.createTextNode(text)); return d; }
@@ -239,11 +241,14 @@
       });
     }
 
-    if(D.scan){
-      var sc = D.scan;
+    var scanSrc = A ? A.scan : D.scan;
+    if(scanSrc){
+      var sc = scanSrc;
       var ssec = el('section','block grp');
       ssec.appendChild(el('h2','blockTitle', '📋 ' + (sc.title||'全レース判定')));
-      if(sc.intro) ssec.appendChild(el('div','kIntro', sc.intro));
+      var sIntro = sc.intro || '';
+      if(A && A.updated) sIntro = '🔄 自動更新: ' + A.updated + '　' + sIntro;
+      if(sIntro) ssec.appendChild(el('div','kIntro', sIntro));
       (sc.days||[]).forEach(function(d){
         var grp = el('div','kGroup grp');
         grp.appendChild(el('div','kDay', d.day));

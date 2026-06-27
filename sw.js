@@ -1,5 +1,5 @@
 // 競馬 期待値ボックス - service worker (ホスティング時のみ有効)
-const C = 'ev-box-v6';
+const C = 'ev-box-v7';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -18,7 +18,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   // data.js は network-first（最新の買い目を優先、オフライン時はキャッシュ）
-  if (url.pathname.endsWith('data.js')) {
+  if (url.pathname.endsWith('data.js') || url.pathname.endsWith('auto.js')) {
     e.respondWith(
       fetch(e.request)
         .then(r => { const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; })
