@@ -152,6 +152,16 @@
   .call-skip{background:var(--grayp);color:#0c1512}
   .call-watch{background:var(--blue);color:#04121f}
   .scConf{font-size:10px;color:var(--gold);letter-spacing:1px}
+  .evTag{flex:0 0 auto;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .ev-plus{background:var(--green);color:#04140c}
+  .ev-watch{background:var(--blue);color:#04121f}
+  .ev-minus{background:var(--red);color:#220607}
+  .prov{display:inline-block;font-size:9px;font-weight:800;color:var(--gold);border:1px solid rgba(231,182,76,.55);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  .hev{font-size:11px;color:#9fb7ac;margin-top:4px;padding-left:40px}
+  .gate{display:inline-block;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .gate-go{background:var(--gold);color:#3a2c06}
+  .gate-no{background:var(--red);color:#220607}
+  .beRow{font-size:12px;font-weight:700;color:#bff0d6;background:rgba(34,192,125,.07);border:1px dashed rgba(34,192,125,.3);border-radius:9px;padding:7px 10px;margin-top:6px}
   .pending{font-size:12.5px;color:#cdded6;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
   .disclaimer{font-size:11px;color:var(--muted);margin-top:22px;text-align:center;line-height:1.6}
   .noRes{font-size:13px;color:var(--muted);text-align:center;padding:30px 0}
@@ -172,6 +182,10 @@
     function labeledBet(label, text, cls){ var d=el('div',cls); d.appendChild(el('span','betLabel',label)); d.appendChild(document.createTextNode(text)); return d; }
     function fitClass(f){ return f==='◎' ? 'good' : (f==='○' ? 'ok' : 'warn'); }
     function stars(n){ var s=''; for(var i=0;i<n;i++){ s+='★'; } return s; }
+    // EV表示（フェーズ1: 数値は暫定。閾値は requirements §2-4）
+    function evCls(lb){ return lb==='+EV' ? 'ev-plus' : (lb==='-EV' ? 'ev-minus' : 'ev-watch'); }
+    function labelOf(ev){ return ev>=0.10 ? '+EV' : (ev>=-0.05 ? '様子見' : '-EV'); }
+    function fmtEv(v){ return (v==null || isNaN(v)) ? '—' : (v>0?'+':'') + Number(v).toFixed(2); }
     function guideCard(title, items, cls){
       var d=el('div','gcard '+cls); d.appendChild(el('h3',null,title));
       var ul=el('ul'); (items||[]).forEach(function(it){ ul.appendChild(el('li',null,it)); }); d.appendChild(ul);
@@ -356,10 +370,22 @@
       var sub = el('div','rsub');
       sub.textContent = [r.course, r.field].filter(Boolean).join('  /  ');
       left.appendChild(sub);
+      if(r.evLabel || r.provisional || (r.finalGate && r.finalGate.verdict)){
+        var evline = el('div','meta-row');
+        if(r.evLabel) evline.appendChild(el('span','evTag '+evCls(r.evLabel), r.evLabel));
+        if(r.provisional) evline.appendChild(el('span','prov','暫定'));
+        if(r.finalGate && r.finalGate.verdict){
+          var g = r.finalGate;
+          var gt = '直前 '+g.verdict + (g.asOf ? '（'+String(g.asOf).slice(11,16)+'）' : '');
+          evline.appendChild(el('span','gate '+(g.verdict==='GO'?'gate-go':'gate-no'), gt));
+        }
+        left.appendChild(evline);
+      }
       top.appendChild(left);
       if(r.verdict) top.appendChild(el('div','verdict', r.verdict));
       c.appendChild(top);
       if(r.verdictNote) c.appendChild(el('div','verdictNote', r.verdictNote));
+      if(r.hPending) c.appendChild(el('div','rsub','※人気乖離(H)は予想オッズ待ち＝未反映'));
 
       var hl = el('div','horses');
       (r.box||[]).forEach(function(h){
@@ -368,7 +394,22 @@
         hr.appendChild(el('span','num', (h.num!=null && h.num!=='') ? h.num : '－'));
         hr.appendChild(el('span','hname', h.name||''));
         if(h.tag) hr.appendChild(el('span','tag '+(tagColor[h.tag]||'muted'), h.tag));
+        var evBest = null;
+        if(h.evWin!=null || h.evPlace!=null){
+          evBest = Math.max(h.evWin!=null?h.evWin:-Infinity, h.evPlace!=null?h.evPlace:-Infinity);
+          hr.appendChild(el('span','evTag '+evCls(labelOf(evBest)), labelOf(evBest)));
+        }
         row.appendChild(hr);
+        if(h.score!=null || evBest!=null){
+          var hv = el('div','hev');
+          var parts = [];
+          if(h.score!=null) parts.push('スコア'+h.score);
+          if(h.evWin!=null) parts.push('単勝EV '+fmtEv(h.evWin));
+          if(h.evPlace!=null) parts.push('複勝EV '+fmtEv(h.evPlace));
+          hv.appendChild(document.createTextNode(parts.join('｜')));
+          if(r.provisional) hv.appendChild(el('span','prov','暫定'));
+          row.appendChild(hv);
+        }
         if(h.note) row.appendChild(el('div','hnote', h.note));
         hl.appendChild(row);
       });
@@ -380,6 +421,14 @@
         if(r.bets.pick) b.appendChild(labeledBet('本線', r.bets.pick, 'betMain'));
         if(r.bets.box5) b.appendChild(labeledBet('5頭BOX', r.bets.box5, 'betBox'));
         c.appendChild(b);
+      }
+
+      if(r.sanrenpuku){
+        var sp = r.sanrenpuku;
+        var beTxt = '3連複BOX 損益分岐 合成' + (sp.breakEven!=null ? Number(sp.breakEven).toFixed(1) : '—') + '倍'
+          + '（的中p ' + (sp.pCombo!=null ? (sp.pCombo*100).toFixed(1) : '—') + '%）';
+        if(sp.oddsFinal!=null) beTxt += '／実合成 ' + sp.oddsFinal + '倍 → EV ' + fmtEv(sp.evFinal);
+        (c.querySelector('.bets') || c).appendChild(el('div','beRow', beTxt));
       }
 
       if(r.odds){
