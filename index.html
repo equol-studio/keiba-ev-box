@@ -142,6 +142,16 @@
   .fit-warn{background:var(--grayp);color:#0c1512}
   .kNote{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
   .scRow{display:flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px}
+  .scLeft{flex:0 0 44px;display:flex;flex-direction:column;align-items:center;gap:1px}
+  .scVenue{font-size:9.5px;font-weight:800;color:#0c1512;background:var(--grayp);border-radius:4px;padding:0 5px}
+  .scEv{font-size:10px;font-weight:800;letter-spacing:.02em}
+  .scEv.plus{color:var(--green)}
+  .scEv.watch{color:var(--blue)}
+  .scEv.minus{color:var(--red)}
+  .evTools{display:flex;gap:8px;margin:0 0 10px}
+  .evTools button{font-size:12px;font-weight:700;color:#cfe0d8;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .evTools button.on{color:#04140c;background:var(--green);border-color:var(--green)}
+  .evhide{display:none !important}
   .scNo{flex:0 0 38px;font-size:12px;font-weight:800;color:#cfe0d8;text-align:center}
   .scMid{flex:1;min-width:0}
   .scCond{font-size:11.5px;color:#dbe6e0}
@@ -255,7 +265,12 @@
       });
     }
 
-    var scanSrc = A ? A.scan : D.scan;
+    // 二層構造: 通常は KEIBA_AUTO(一次採点) 優先。ただし data.js 側の scan が
+    // EV精査済み(v2: evLabel/bestEv あり)なら昇格版として優先表示する。
+    var dScanHasEv = !!(D.scan && (D.scan.days||[]).some(function(d){
+      return (d.races||[]).some(function(rc){ return rc.evLabel || rc.bestEv!=null; });
+    }));
+    var scanSrc = dScanHasEv ? D.scan : (A ? A.scan : D.scan);
     if(scanSrc){
       var sc = scanSrc;
       var ssec = el('section','block grp');
@@ -263,13 +278,31 @@
       var sIntro = sc.intro || '';
       if(A && A.updated) sIntro = '🔄 自動更新: ' + A.updated + '　' + sIntro;
       if(sIntro) ssec.appendChild(el('div','kIntro', sIntro));
+      // EVツール（+EVのみ／EV降順）: EV情報を持つ行がある場合のみ表示
+      var hasEv = (sc.days||[]).some(function(d){
+        return (d.races||[]).some(function(rc){ return rc.evLabel || rc.bestEv!=null; });
+      });
+      var btnPlus, btnSort;
+      if(hasEv){
+        var tools = el('div','evTools meta');
+        btnPlus = el('button',null,'+EVのみ');
+        btnSort = el('button',null,'EV降順');
+        tools.appendChild(btnPlus); tools.appendChild(btnSort);
+        ssec.appendChild(tools);
+      }
       (sc.days||[]).forEach(function(d){
         var grp = el('div','kGroup grp');
         grp.appendChild(el('div','kDay', d.day));
-        (d.races||[]).forEach(function(rc){
+        (d.races||[]).forEach(function(rc, idx){
           var row = el('div','scRow srch');
-          row.dataset.s = [rc.no, rc.cond, rc.note, rc.call].join(' ').toLowerCase();
-          row.appendChild(el('span','scNo', rc.no));
+          row.dataset.s = [rc.venue, rc.no, rc.cond, rc.note, rc.call, rc.evLabel].join(' ').toLowerCase();
+          row.dataset.idx = idx;
+          row.dataset.ev = rc.bestEv!=null ? rc.bestEv : -999;
+          row.dataset.lb = rc.evLabel || '';
+          var lft = el('div','scLeft');
+          if(rc.venue) lft.appendChild(el('div','scVenue', rc.venue));
+          lft.appendChild(el('div','scNo', rc.no));
+          row.appendChild(lft);
           var mid = el('div','scMid');
           mid.appendChild(el('div','scCond', rc.cond));
           if(rc.note) mid.appendChild(el('div','scNote', rc.note));
@@ -278,11 +311,37 @@
           var cc = rc.call==='参戦' ? 'call-go' : (rc.call==='見送り' ? 'call-skip' : 'call-watch');
           right.appendChild(el('div','scCall '+cc, rc.call||''));
           if(rc.conf) right.appendChild(el('div','scConf', stars(rc.conf)));
+          if(rc.evLabel || rc.bestEv!=null){
+            var ecls = rc.evLabel==='+EV' ? 'plus' : (rc.evLabel==='-EV' ? 'minus' : 'watch');
+            var etxt = (rc.bestScore!=null ? 'S'+rc.bestScore+' ' : '') + 'EV' + fmtEv(rc.bestEv);
+            right.appendChild(el('div','scEv '+ecls, etxt));
+          }
           row.appendChild(right);
           grp.appendChild(row);
         });
         ssec.appendChild(grp);
       });
+      if(hasEv){
+        var onlyPlus = false, sorted = false;
+        btnPlus.addEventListener('click', function(){
+          onlyPlus = !onlyPlus;
+          btnPlus.classList.toggle('on', onlyPlus);
+          ssec.querySelectorAll('.scRow').forEach(function(row){
+            row.classList.toggle('evhide', onlyPlus && row.dataset.lb !== '+EV');
+          });
+        });
+        btnSort.addEventListener('click', function(){
+          sorted = !sorted;
+          btnSort.classList.toggle('on', sorted);
+          ssec.querySelectorAll('.kGroup').forEach(function(grp){
+            var rows = Array.prototype.slice.call(grp.querySelectorAll('.scRow'));
+            rows.sort(sorted
+              ? function(a,b){ return (+b.dataset.ev) - (+a.dataset.ev); }
+              : function(a,b){ return (+a.dataset.idx) - (+b.dataset.idx); });
+            rows.forEach(function(row){ grp.appendChild(row); });
+          });
+        });
+      }
       root.appendChild(ssec);
     }
 
