@@ -142,6 +142,16 @@
   .fit-warn{background:var(--grayp);color:#0c1512}
   .kNote{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
   .scRow{display:flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px}
+  .scLeft{flex:0 0 44px;display:flex;flex-direction:column;align-items:center;gap:1px}
+  .scVenue{font-size:9.5px;font-weight:800;color:#0c1512;background:var(--grayp);border-radius:4px;padding:0 5px}
+  .scEv{font-size:10px;font-weight:800;letter-spacing:.02em}
+  .scEv.plus{color:var(--green)}
+  .scEv.watch{color:var(--blue)}
+  .scEv.minus{color:var(--red)}
+  .evTools{display:flex;gap:8px;margin:0 0 10px}
+  .evTools button{font-size:12px;font-weight:700;color:#cfe0d8;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .evTools button.on{color:#04140c;background:var(--green);border-color:var(--green)}
+  .evhide{display:none !important}
   .scNo{flex:0 0 38px;font-size:12px;font-weight:800;color:#cfe0d8;text-align:center}
   .scMid{flex:1;min-width:0}
   .scCond{font-size:11.5px;color:#dbe6e0}
@@ -152,6 +162,28 @@
   .call-skip{background:var(--grayp);color:#0c1512}
   .call-watch{background:var(--blue);color:#04121f}
   .scConf{font-size:10px;color:var(--gold);letter-spacing:1px}
+  .evTag{flex:0 0 auto;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .ev-plus{background:var(--green);color:#04140c}
+  .ev-watch{background:var(--blue);color:#04121f}
+  .ev-minus{background:var(--red);color:#220607}
+  .prov{display:inline-block;font-size:9px;font-weight:800;color:var(--gold);border:1px solid rgba(231,182,76,.55);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  .hev{font-size:11px;color:#9fb7ac;margin-top:4px;padding-left:40px}
+  .gate{display:inline-block;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .gate-go{background:var(--gold);color:#3a2c06}
+  .gate-no{background:var(--red);color:#220607}
+  .beRow{font-size:12px;font-weight:700;color:#bff0d6;background:rgba(34,192,125,.07);border:1px dashed rgba(34,192,125,.3);border-radius:9px;padding:7px 10px;margin-top:6px}
+  .rsBox{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:8px}
+  .rsTitle{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin:0 0 4px}
+  .rsRow{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .rsRow:last-child{border-bottom:none}
+  .rsRow.rsHead{font-size:10px;font-weight:800;color:var(--muted)}
+  .rsLbl{flex:1;min-width:0;color:#e9f0ec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsN{flex:0 0 30px;text-align:right;color:#cfe0d8}
+  .rsRoi{flex:0 0 52px;text-align:right;font-weight:800}
+  .rsHit{flex:0 0 44px;text-align:right;color:#cfe0d8}
+  .rsPf{flex:0 0 66px;text-align:right;font-weight:700}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
   .pending{font-size:12.5px;color:#cdded6;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
   .disclaimer{font-size:11px;color:var(--muted);margin-top:22px;text-align:center;line-height:1.6}
   .noRes{font-size:13px;color:var(--muted);text-align:center;padding:30px 0}
@@ -162,6 +194,7 @@
   <main class="wrap" id="app"></main>
   <script src="data.js"></script>
   <script src="auto.js"></script>
+  <script src="results.js"></script>
   <script>
   (function(){
     var D = window.KEIBA_DATA || {};
@@ -172,6 +205,10 @@
     function labeledBet(label, text, cls){ var d=el('div',cls); d.appendChild(el('span','betLabel',label)); d.appendChild(document.createTextNode(text)); return d; }
     function fitClass(f){ return f==='◎' ? 'good' : (f==='○' ? 'ok' : 'warn'); }
     function stars(n){ var s=''; for(var i=0;i<n;i++){ s+='★'; } return s; }
+    // EV表示（フェーズ1: 数値は暫定。閾値は requirements §2-4）
+    function evCls(lb){ return lb==='+EV' ? 'ev-plus' : (lb==='-EV' ? 'ev-minus' : 'ev-watch'); }
+    function labelOf(ev){ return ev>=0.10 ? '+EV' : (ev>=-0.05 ? '様子見' : '-EV'); }
+    function fmtEv(v){ return (v==null || isNaN(v)) ? '—' : (v>0?'+':'') + Number(v).toFixed(2); }
     function guideCard(title, items, cls){
       var d=el('div','gcard '+cls); d.appendChild(el('h3',null,title));
       var ul=el('ul'); (items||[]).forEach(function(it){ ul.appendChild(el('li',null,it)); }); d.appendChild(ul);
@@ -241,7 +278,19 @@
       });
     }
 
-    var scanSrc = A ? A.scan : D.scan;
+    // 二層構造: 通常は KEIBA_AUTO(一次採点) 優先。data.js 側の scan が
+    // EV精査済み(v2: evLabel/bestEv あり)かつ自動更新より新しい(scan.asOf >= A.updated)
+    // 場合のみ昇格。asOf が無い/古い scan は昇格させない（次開催の自動更新を隠さないため）。
+    var dScanHasEv = !!(D.scan && (D.scan.days||[]).some(function(d){
+      return (d.races||[]).some(function(rc){ return rc.evLabel || rc.bestEv!=null; });
+    }));
+    function evStamp(s){
+      var m=/(\d{4})[-\/](\d{2})[-\/](\d{2})[ T]?(\d{2}:\d{2})?/.exec(s||'');
+      return m ? m[1]+'-'+m[2]+'-'+m[3]+' '+(m[4]||'00:00') : null;
+    }
+    var dScanNewer = dScanHasEv && (!A || !A.updated ||
+      (evStamp(D.scan.asOf) && evStamp(D.scan.asOf) >= evStamp(A.updated)));
+    var scanSrc = dScanNewer ? D.scan : (A ? A.scan : D.scan);
     if(scanSrc){
       var sc = scanSrc;
       var ssec = el('section','block grp');
@@ -249,13 +298,31 @@
       var sIntro = sc.intro || '';
       if(A && A.updated) sIntro = '🔄 自動更新: ' + A.updated + '　' + sIntro;
       if(sIntro) ssec.appendChild(el('div','kIntro', sIntro));
+      // EVツール（+EVのみ／EV降順）: EV情報を持つ行がある場合のみ表示
+      var hasEv = (sc.days||[]).some(function(d){
+        return (d.races||[]).some(function(rc){ return rc.evLabel || rc.bestEv!=null; });
+      });
+      var btnPlus, btnSort;
+      if(hasEv){
+        var tools = el('div','evTools meta');
+        btnPlus = el('button',null,'+EVのみ');
+        btnSort = el('button',null,'EV降順');
+        tools.appendChild(btnPlus); tools.appendChild(btnSort);
+        ssec.appendChild(tools);
+      }
       (sc.days||[]).forEach(function(d){
         var grp = el('div','kGroup grp');
         grp.appendChild(el('div','kDay', d.day));
-        (d.races||[]).forEach(function(rc){
+        (d.races||[]).forEach(function(rc, idx){
           var row = el('div','scRow srch');
-          row.dataset.s = [rc.no, rc.cond, rc.note, rc.call].join(' ').toLowerCase();
-          row.appendChild(el('span','scNo', rc.no));
+          row.dataset.s = [rc.venue, rc.no, rc.cond, rc.note, rc.call, rc.evLabel].join(' ').toLowerCase();
+          row.dataset.idx = idx;
+          row.dataset.ev = rc.bestEv!=null ? rc.bestEv : -999;
+          row.dataset.lb = rc.evLabel || '';
+          var lft = el('div','scLeft');
+          if(rc.venue) lft.appendChild(el('div','scVenue', rc.venue));
+          lft.appendChild(el('div','scNo', rc.no));
+          row.appendChild(lft);
           var mid = el('div','scMid');
           mid.appendChild(el('div','scCond', rc.cond));
           if(rc.note) mid.appendChild(el('div','scNote', rc.note));
@@ -264,11 +331,37 @@
           var cc = rc.call==='参戦' ? 'call-go' : (rc.call==='見送り' ? 'call-skip' : 'call-watch');
           right.appendChild(el('div','scCall '+cc, rc.call||''));
           if(rc.conf) right.appendChild(el('div','scConf', stars(rc.conf)));
+          if(rc.evLabel || rc.bestEv!=null){
+            var ecls = rc.evLabel==='+EV' ? 'plus' : (rc.evLabel==='-EV' ? 'minus' : 'watch');
+            var etxt = (rc.bestScore!=null ? 'S'+rc.bestScore+' ' : '') + 'EV' + fmtEv(rc.bestEv);
+            right.appendChild(el('div','scEv '+ecls, etxt));
+          }
           row.appendChild(right);
           grp.appendChild(row);
         });
         ssec.appendChild(grp);
       });
+      if(hasEv){
+        var onlyPlus = false, sorted = false;
+        btnPlus.addEventListener('click', function(){
+          onlyPlus = !onlyPlus;
+          btnPlus.classList.toggle('on', onlyPlus);
+          ssec.querySelectorAll('.scRow').forEach(function(row){
+            row.classList.toggle('evhide', onlyPlus && row.dataset.lb !== '+EV');
+          });
+        });
+        btnSort.addEventListener('click', function(){
+          sorted = !sorted;
+          btnSort.classList.toggle('on', sorted);
+          ssec.querySelectorAll('.kGroup').forEach(function(grp){
+            var rows = Array.prototype.slice.call(grp.querySelectorAll('.scRow'));
+            rows.sort(sorted
+              ? function(a,b){ return (+b.dataset.ev) - (+a.dataset.ev); }
+              : function(a,b){ return (+a.dataset.idx) - (+b.dataset.idx); });
+            rows.forEach(function(row){ grp.appendChild(row); });
+          });
+        });
+      }
       root.appendChild(ssec);
     }
 
@@ -302,6 +395,96 @@
       });
       if(k.note) ksec.appendChild(el('div','kNote', k.note));
       root.appendChild(ksec);
+    }
+
+    // 検証ログ（KEIBA_RESULTS）: 集計は保存せず、entries からロード時に毎回計算（単一情報源）
+    var RS = window.KEIBA_RESULTS;
+    if(RS){
+      var rsec = el('section','block grp');
+      rsec.appendChild(el('h2','blockTitle', '📒 検証ログ（回収率）'));
+      var es = RS.entries || [];
+      if(!es.length){
+        rsec.appendChild(el('div','kIntro','記録なし。開催後に秘書が results.js を更新すると、通算・券種別・スコア帯別・EV帯別の回収率がここに表示されます。'));
+      } else {
+        if(RS.updated) rsec.appendChild(el('div','kIntro','更新: ' + RS.updated + '　※EVはフェーズ1の暫定値ベース'));
+        var BET_JA = { win:'単勝', place:'複勝', wide:'ワイド', sanrenpuku:'3連複' };
+        function agg(list){
+          var a = { n:list.length, stake:0, payout:0, hit:0, dec:0 };
+          list.forEach(function(e){
+            a.stake += e.stake||0; a.payout += e.payout||0;
+            if(e.result==='hit') a.hit++;
+            if(e.result==='hit' || e.result==='miss') a.dec++;
+          });
+          a.profit = a.payout - a.stake;
+          a.roi = a.stake ? Math.round(a.payout / a.stake * 100) : null;
+          a.hr = a.dec ? Math.round(a.hit / a.dec * 100) : null;
+          return a;
+        }
+        function aggRow(label, a){
+          var row = el('div','rsRow');
+          row.appendChild(el('span','rsLbl', label));
+          row.appendChild(el('span','rsN', String(a.n)));
+          row.appendChild(el('span','rsRoi ' + (a.roi!=null && a.roi>=100 ? 'pos':'neg'), a.roi!=null ? a.roi+'%' : '—'));
+          row.appendChild(el('span','rsHit', a.hr!=null ? a.hr+'%' : '—'));
+          row.appendChild(el('span','rsPf ' + (a.profit>=0?'pos':'neg'), (a.profit>0?'+':'')+a.profit.toLocaleString()+'円'));
+          return row;
+        }
+        function headRow(){
+          var row = el('div','rsRow rsHead');
+          ['対象','件','回収率','的中率','損益'].forEach(function(h,i){
+            row.appendChild(el('span',['rsLbl','rsN','rsRoi','rsHit','rsPf'][i], h));
+          });
+          return row;
+        }
+        function aggBox(title, groups){
+          var box = el('div','rsBox');
+          box.appendChild(el('div','rsTitle', title));
+          box.appendChild(headRow());
+          groups.forEach(function(g){ if(g.list.length) box.appendChild(aggRow(g.label, agg(g.list))); });
+          return box;
+        }
+        rsec.appendChild(aggBox('通算', [{ label:'全ベット', list:es }]));
+        rsec.appendChild(aggBox('券種別', ['win','place','wide','sanrenpuku'].map(function(t){
+          return { label: BET_JA[t]||t, list: es.filter(function(e){ return e.betType===t; }) };
+        })));
+        function scoreBand(s){
+          if(s==null) return '不明';
+          var b = Math.max(0, Math.min(9, Math.floor(s/10)));
+          return b===9 ? '90-100' : (b*10)+'-'+(b*10+9);
+        }
+        var sBands = [];
+        es.forEach(function(e){ var b = scoreBand(e.score); if(sBands.indexOf(b)<0) sBands.push(b); });
+        sBands.sort();
+        rsec.appendChild(aggBox('スコア帯別（軸馬）', sBands.map(function(b){
+          return { label:'S'+b, list: es.filter(function(e){ return scoreBand(e.score)===b; }) };
+        })));
+        // EV帯（K7仮決め）: <0 / 0〜0.1 / 0.1〜0.3 / 0.3以上（evYoso基準）
+        function evBand(e){
+          var v = e.evYoso;
+          if(v==null) return '不明';
+          return v<0 ? 'EV<0' : v<0.1 ? 'EV 0〜0.1' : v<0.3 ? 'EV 0.1〜0.3' : 'EV 0.3以上';
+        }
+        var eOrder = ['EV<0','EV 0〜0.1','EV 0.1〜0.3','EV 0.3以上','不明'];
+        rsec.appendChild(aggBox('EV帯別（一次採点時）', eOrder.map(function(b){
+          return { label:b, list: es.filter(function(e){ return evBand(e)===b; }) };
+        })));
+        var hist = el('div','rsBox');
+        hist.appendChild(el('div','rsTitle','履歴（新しい順）'));
+        es.forEach(function(e){
+          var row = el('div','rsRow srch');
+          var sel = (BET_JA[e.betType]||e.betType||'') + ' ' + (e.selection||'');
+          row.dataset.s = [e.date, e.venue, e.raceNo, e.raceName, sel, e.result].join(' ').toLowerCase();
+          var d = (e.date||'').slice(5).replace('-','/');
+          row.appendChild(el('span','rsLbl', d + ' ' + (e.venue||'') + (e.raceNo||'') + ' ' + sel));
+          row.appendChild(el('span','rsHit', e.result==='hit' ? '的中' : e.result==='refund' ? '返還' : '外れ'));
+          row.appendChild(el('span','rsN', ((e.stake||0)/1000).toFixed(1)+'k'));
+          var pf = e.profit!=null ? e.profit : (e.payout||0)-(e.stake||0);
+          row.appendChild(el('span','rsPf ' + (pf>=0?'pos':'neg'), (pf>0?'+':'')+pf.toLocaleString()+'円'));
+          hist.appendChild(row);
+        });
+        rsec.appendChild(hist);
+      }
+      root.appendChild(rsec);
     }
 
     if(D.pending) root.appendChild(el('div','pending meta', D.pending));
@@ -356,10 +539,22 @@
       var sub = el('div','rsub');
       sub.textContent = [r.course, r.field].filter(Boolean).join('  /  ');
       left.appendChild(sub);
+      if(r.evLabel || r.provisional || (r.finalGate && r.finalGate.verdict)){
+        var evline = el('div','meta-row');
+        if(r.evLabel) evline.appendChild(el('span','evTag '+evCls(r.evLabel), r.evLabel));
+        if(r.provisional) evline.appendChild(el('span','prov','暫定'));
+        if(r.finalGate && r.finalGate.verdict){
+          var g = r.finalGate;
+          var gt = '直前 '+g.verdict + (g.asOf ? '（'+String(g.asOf).slice(11,16)+'）' : '');
+          evline.appendChild(el('span','gate '+(g.verdict==='GO'?'gate-go':'gate-no'), gt));
+        }
+        left.appendChild(evline);
+      }
       top.appendChild(left);
       if(r.verdict) top.appendChild(el('div','verdict', r.verdict));
       c.appendChild(top);
       if(r.verdictNote) c.appendChild(el('div','verdictNote', r.verdictNote));
+      if(r.hPending) c.appendChild(el('div','rsub','※人気乖離(H)は予想オッズ待ち＝未反映'));
 
       var hl = el('div','horses');
       (r.box||[]).forEach(function(h){
@@ -368,7 +563,22 @@
         hr.appendChild(el('span','num', (h.num!=null && h.num!=='') ? h.num : '－'));
         hr.appendChild(el('span','hname', h.name||''));
         if(h.tag) hr.appendChild(el('span','tag '+(tagColor[h.tag]||'muted'), h.tag));
+        var evBest = null;
+        if(h.evWin!=null || h.evPlace!=null){
+          evBest = Math.max(h.evWin!=null?h.evWin:-Infinity, h.evPlace!=null?h.evPlace:-Infinity);
+          hr.appendChild(el('span','evTag '+evCls(labelOf(evBest)), labelOf(evBest)));
+        }
         row.appendChild(hr);
+        if(h.score!=null || evBest!=null){
+          var hv = el('div','hev');
+          var parts = [];
+          if(h.score!=null) parts.push('スコア'+h.score);
+          if(h.evWin!=null) parts.push('単勝EV '+fmtEv(h.evWin));
+          if(h.evPlace!=null) parts.push('複勝EV '+fmtEv(h.evPlace));
+          hv.appendChild(document.createTextNode(parts.join('｜')));
+          if(r.provisional) hv.appendChild(el('span','prov','暫定'));
+          row.appendChild(hv);
+        }
         if(h.note) row.appendChild(el('div','hnote', h.note));
         hl.appendChild(row);
       });
@@ -380,6 +590,14 @@
         if(r.bets.pick) b.appendChild(labeledBet('本線', r.bets.pick, 'betMain'));
         if(r.bets.box5) b.appendChild(labeledBet('5頭BOX', r.bets.box5, 'betBox'));
         c.appendChild(b);
+      }
+
+      if(r.sanrenpuku){
+        var sp = r.sanrenpuku;
+        var beTxt = '3連複BOX 損益分岐 合成' + (sp.breakEven!=null ? Number(sp.breakEven).toFixed(1) : '—') + '倍'
+          + '（的中p ' + (sp.pCombo!=null ? (sp.pCombo*100).toFixed(1) : '—') + '%）';
+        if(sp.oddsFinal!=null) beTxt += '／実合成 ' + sp.oddsFinal + '倍 → EV ' + fmtEv(sp.evFinal);
+        (c.querySelector('.bets') || c).appendChild(el('div','beRow', beTxt));
       }
 
       if(r.odds){

@@ -2,7 +2,8 @@ name: refresh-scan
 
 on:
   schedule:
-    - cron: '0 12 * * 5'   # 毎週金 12:00 UTC = 21:00 JST
+    - cron: '0 12 * * 5'   # 毎週金 12:00 UTC = 21:00 JST（出馬表＋予想オッズ）
+    - cron: '0 22 * * 5,6' # 金・土 22:00 UTC = 土・日 7:00 JST（予想オッズ再取得）
   workflow_dispatch:
     inputs:
       dates:
@@ -25,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Run EV unit tests (fail-safe gate)
+        run: node scripts/test-ev.mjs
       - name: Build auto.js from netkeiba
         env:
           DATES: ${{ github.event.inputs.dates }}
