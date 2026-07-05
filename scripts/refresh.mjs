@@ -16,6 +16,11 @@ const ymd = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getU
 function upcomingWeekend() {
   const n = jst();
   const d = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+  // 日曜(当日開催中)は「今週末」= 昨日(土)・今日(日)。土日朝cron対応
+  if (d.getUTCDay() === 0) {
+    const sat = new Date(d); sat.setUTCDate(d.getUTCDate() - 1);
+    return [ymd(sat), ymd(d)];
+  }
   const toSat = (6 - d.getUTCDay() + 7) % 7;
   const sat = new Date(d); sat.setUTCDate(d.getUTCDate() + toSat);
   const sun = new Date(sat); sun.setUTCDate(sat.getUTCDate() + 1);
