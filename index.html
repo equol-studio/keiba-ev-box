@@ -172,6 +172,18 @@
   .gate-go{background:var(--gold);color:#3a2c06}
   .gate-no{background:var(--red);color:#220607}
   .beRow{font-size:12px;font-weight:700;color:#bff0d6;background:rgba(34,192,125,.07);border:1px dashed rgba(34,192,125,.3);border-radius:9px;padding:7px 10px;margin-top:6px}
+  .rsBox{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:8px}
+  .rsTitle{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin:0 0 4px}
+  .rsRow{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .rsRow:last-child{border-bottom:none}
+  .rsRow.rsHead{font-size:10px;font-weight:800;color:var(--muted)}
+  .rsLbl{flex:1;min-width:0;color:#e9f0ec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsN{flex:0 0 30px;text-align:right;color:#cfe0d8}
+  .rsRoi{flex:0 0 52px;text-align:right;font-weight:800}
+  .rsHit{flex:0 0 44px;text-align:right;color:#cfe0d8}
+  .rsPf{flex:0 0 66px;text-align:right;font-weight:700}
+  .pos{color:var(--green)}
+  .neg{color:var(--red)}
   .pending{font-size:12.5px;color:#cdded6;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
   .disclaimer{font-size:11px;color:var(--muted);margin-top:22px;text-align:center;line-height:1.6}
   .noRes{font-size:13px;color:var(--muted);text-align:center;padding:30px 0}
@@ -182,6 +194,7 @@
   <main class="wrap" id="app"></main>
   <script src="data.js"></script>
   <script src="auto.js"></script>
+  <script src="results.js"></script>
   <script>
   (function(){
     var D = window.KEIBA_DATA || {};
@@ -375,6 +388,96 @@
       });
       if(k.note) ksec.appendChild(el('div','kNote', k.note));
       root.appendChild(ksec);
+    }
+
+    // 検証ログ（KEIBA_RESULTS）: 集計は保存せず、entries からロード時に毎回計算（単一情報源）
+    var RS = window.KEIBA_RESULTS;
+    if(RS){
+      var rsec = el('section','block grp');
+      rsec.appendChild(el('h2','blockTitle', '📒 検証ログ（回収率）'));
+      var es = RS.entries || [];
+      if(!es.length){
+        rsec.appendChild(el('div','kIntro','記録なし。開催後に秘書が results.js を更新すると、通算・券種別・スコア帯別・EV帯別の回収率がここに表示されます。'));
+      } else {
+        if(RS.updated) rsec.appendChild(el('div','kIntro','更新: ' + RS.updated + '　※EVはフェーズ1の暫定値ベース'));
+        var BET_JA = { win:'単勝', place:'複勝', wide:'ワイド', sanrenpuku:'3連複' };
+        function agg(list){
+          var a = { n:list.length, stake:0, payout:0, hit:0, dec:0 };
+          list.forEach(function(e){
+            a.stake += e.stake||0; a.payout += e.payout||0;
+            if(e.result==='hit') a.hit++;
+            if(e.result==='hit' || e.result==='miss') a.dec++;
+          });
+          a.profit = a.payout - a.stake;
+          a.roi = a.stake ? Math.round(a.payout / a.stake * 100) : null;
+          a.hr = a.dec ? Math.round(a.hit / a.dec * 100) : null;
+          return a;
+        }
+        function aggRow(label, a){
+          var row = el('div','rsRow');
+          row.appendChild(el('span','rsLbl', label));
+          row.appendChild(el('span','rsN', String(a.n)));
+          row.appendChild(el('span','rsRoi ' + (a.roi!=null && a.roi>=100 ? 'pos':'neg'), a.roi!=null ? a.roi+'%' : '—'));
+          row.appendChild(el('span','rsHit', a.hr!=null ? a.hr+'%' : '—'));
+          row.appendChild(el('span','rsPf ' + (a.profit>=0?'pos':'neg'), (a.profit>0?'+':'')+a.profit.toLocaleString()+'円'));
+          return row;
+        }
+        function headRow(){
+          var row = el('div','rsRow rsHead');
+          ['対象','件','回収率','的中率','損益'].forEach(function(h,i){
+            row.appendChild(el('span',['rsLbl','rsN','rsRoi','rsHit','rsPf'][i], h));
+          });
+          return row;
+        }
+        function aggBox(title, groups){
+          var box = el('div','rsBox');
+          box.appendChild(el('div','rsTitle', title));
+          box.appendChild(headRow());
+          groups.forEach(function(g){ if(g.list.length) box.appendChild(aggRow(g.label, agg(g.list))); });
+          return box;
+        }
+        rsec.appendChild(aggBox('通算', [{ label:'全ベット', list:es }]));
+        rsec.appendChild(aggBox('券種別', ['win','place','wide','sanrenpuku'].map(function(t){
+          return { label: BET_JA[t]||t, list: es.filter(function(e){ return e.betType===t; }) };
+        })));
+        function scoreBand(s){
+          if(s==null) return '不明';
+          var b = Math.max(0, Math.min(9, Math.floor(s/10)));
+          return b===9 ? '90-100' : (b*10)+'-'+(b*10+9);
+        }
+        var sBands = [];
+        es.forEach(function(e){ var b = scoreBand(e.score); if(sBands.indexOf(b)<0) sBands.push(b); });
+        sBands.sort();
+        rsec.appendChild(aggBox('スコア帯別（軸馬）', sBands.map(function(b){
+          return { label:'S'+b, list: es.filter(function(e){ return scoreBand(e.score)===b; }) };
+        })));
+        // EV帯（K7仮決め）: <0 / 0〜0.1 / 0.1〜0.3 / 0.3以上（evYoso基準）
+        function evBand(e){
+          var v = e.evYoso;
+          if(v==null) return '不明';
+          return v<0 ? 'EV<0' : v<0.1 ? 'EV 0〜0.1' : v<0.3 ? 'EV 0.1〜0.3' : 'EV 0.3以上';
+        }
+        var eOrder = ['EV<0','EV 0〜0.1','EV 0.1〜0.3','EV 0.3以上','不明'];
+        rsec.appendChild(aggBox('EV帯別（一次採点時）', eOrder.map(function(b){
+          return { label:b, list: es.filter(function(e){ return evBand(e)===b; }) };
+        })));
+        var hist = el('div','rsBox');
+        hist.appendChild(el('div','rsTitle','履歴（新しい順）'));
+        es.forEach(function(e){
+          var row = el('div','rsRow srch');
+          var sel = (BET_JA[e.betType]||e.betType||'') + ' ' + (e.selection||'');
+          row.dataset.s = [e.date, e.venue, e.raceNo, e.raceName, sel, e.result].join(' ').toLowerCase();
+          var d = (e.date||'').slice(5).replace('-','/');
+          row.appendChild(el('span','rsLbl', d + ' ' + (e.venue||'') + (e.raceNo||'') + ' ' + sel));
+          row.appendChild(el('span','rsHit', e.result==='hit' ? '的中' : e.result==='refund' ? '返還' : '外れ'));
+          row.appendChild(el('span','rsN', ((e.stake||0)/1000).toFixed(1)+'k'));
+          var pf = e.profit!=null ? e.profit : (e.payout||0)-(e.stake||0);
+          row.appendChild(el('span','rsPf ' + (pf>=0?'pos':'neg'), (pf>0?'+':'')+pf.toLocaleString()+'円'));
+          hist.appendChild(row);
+        });
+        rsec.appendChild(hist);
+      }
+      root.appendChild(rsec);
     }
 
     if(D.pending) root.appendChild(el('div','pending meta', D.pending));
