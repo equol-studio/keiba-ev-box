@@ -159,8 +159,9 @@ export function buildRace(input) {
 }
 
 // CLI: node scripts/ev.mjs <input.json>
-if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` ||
-    process.argv[1] && process.argv[1].endsWith('ev.mjs')) {
+const argvPath = process.argv[1] ? process.argv[1].replace(/\\/g, '/') : '';
+if (import.meta.url === `file://${argvPath}` ||
+    argvPath === 'ev.mjs' || argvPath.endsWith('/ev.mjs')) {
   const file = process.argv[2];
   if (file) {
     const { readFileSync } = await import('node:fs');

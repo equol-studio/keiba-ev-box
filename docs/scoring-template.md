@@ -56,6 +56,7 @@
 }
 ```
 
+- `field` は**必須**（出走頭数）。欠落すると複勝の正規化が k=2（7頭以下扱い）に落ち、複勝EVが過小になる。
 - `scores`: 全出走馬の S（馬番キー）。odds は auto.js の `odds.races[raceId]` からコピー。
 - `boxNums`: 5頭BOXの馬番（省略時はスコア上位5頭が自動選定される）。
 - 実行: `node scripts/ev.mjs scores.json` → data.js 用の races/scan 断片JSONが出力される。

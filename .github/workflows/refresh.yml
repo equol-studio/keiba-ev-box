@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Run EV unit tests (fail-safe gate)
+        run: node scripts/test-ev.mjs
       - name: Build auto.js from netkeiba
         env:
           DATES: ${{ github.event.inputs.dates }}

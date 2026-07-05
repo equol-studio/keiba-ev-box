@@ -138,6 +138,9 @@ window.KEIBA_DATA = {
   ],
   scan: {
     title: "全レース判定（函館・両日）",
+    // asOf: この scan を精査した日時。auto.js の updated よりこれが新しい時だけ昇格表示される。
+    // 秘書がEV精査を転記したら必ず asOf を現在時刻(JST)に更新すること。
+    asOf: "2026-06-27 12:00 JST",
     intro: "全12R×2日の参戦/見送り＋妙味スコア/暫定EV。bestScore=レース内最高スコア、EVは単複の高い方。※本内容はv2移行の雛形サンプル値。",
     days: [
       { day: "6/27(土)", races: [

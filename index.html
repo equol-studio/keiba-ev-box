@@ -278,12 +278,19 @@
       });
     }
 
-    // 二層構造: 通常は KEIBA_AUTO(一次採点) 優先。ただし data.js 側の scan が
-    // EV精査済み(v2: evLabel/bestEv あり)なら昇格版として優先表示する。
+    // 二層構造: 通常は KEIBA_AUTO(一次採点) 優先。data.js 側の scan が
+    // EV精査済み(v2: evLabel/bestEv あり)かつ自動更新より新しい(scan.asOf >= A.updated)
+    // 場合のみ昇格。asOf が無い/古い scan は昇格させない（次開催の自動更新を隠さないため）。
     var dScanHasEv = !!(D.scan && (D.scan.days||[]).some(function(d){
       return (d.races||[]).some(function(rc){ return rc.evLabel || rc.bestEv!=null; });
     }));
-    var scanSrc = dScanHasEv ? D.scan : (A ? A.scan : D.scan);
+    function evStamp(s){
+      var m=/(\d{4})[-\/](\d{2})[-\/](\d{2})[ T]?(\d{2}:\d{2})?/.exec(s||'');
+      return m ? m[1]+'-'+m[2]+'-'+m[3]+' '+(m[4]||'00:00') : null;
+    }
+    var dScanNewer = dScanHasEv && (!A || !A.updated ||
+      (evStamp(D.scan.asOf) && evStamp(D.scan.asOf) >= evStamp(A.updated)));
+    var scanSrc = dScanNewer ? D.scan : (A ? A.scan : D.scan);
     if(scanSrc){
       var sc = scanSrc;
       var ssec = el('section','block grp');
