@@ -141,7 +141,12 @@
   .fit-ok{background:var(--blue);color:#04121f}
   .fit-warn{background:var(--grayp);color:#0c1512}
   .kNote{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
-  .scRow{display:flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px}
+  .scRow{display:flex;flex-wrap:wrap;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px}
+  .scRow.has-odds{cursor:pointer}
+  .oddsHint{font-size:10px;font-weight:800;color:var(--blue);margin-top:3px;letter-spacing:.02em}
+  .scRow.open .oddsHint .oChev{display:inline-block;transform:rotate(180deg)}
+  .scOdds{flex:0 0 100%;margin-top:7px;border-top:1px dashed var(--line);padding-top:7px;display:none}
+  .scRow.open .scOdds{display:block}
   .scLeft{flex:0 0 44px;display:flex;flex-direction:column;align-items:center;gap:1px}
   .scVenue{font-size:9.5px;font-weight:800;color:#0c1512;background:var(--grayp);border-radius:4px;padding:0 5px}
   .scEv{font-size:10px;font-weight:800;letter-spacing:.02em}
@@ -221,6 +226,21 @@
       r.appendChild(el('span','oWin', win));
       r.appendChild(el('span','oPlace', place));
       return r;
+    }
+    // 自動オッズ（KEIBA_AUTO.odds.races[raceId]）を人気順の行配列に整形。無ければnull。
+    function autoOddsRows(raceId){
+      if(!(A && A.odds && A.odds.races && raceId)) return null;
+      var d = A.odds.races[raceId];
+      if(!d || !d.win) return null;
+      var rows = Object.keys(d.win).map(function(num){
+        var pl = (d.place && d.place[num]) || null;
+        var placeTxt = pl ? (pl[0]===pl[1] ? String(pl[0]) : pl[0]+'–'+pl[1]) : '—';
+        return { num: num, win: d.win[num], place: placeTxt };
+      }).filter(function(r){ return isFinite(r.win) && r.win > 0; });
+      rows.sort(function(a,b){ return a.win - b.win; });
+      return rows.length ? rows.map(function(r,i){
+        return { pop: i+1, sel: r.num+'番', win: r.win, place: r.place };
+      }) : null;
     }
     var root = document.getElementById('app');
 
@@ -337,6 +357,20 @@
             right.appendChild(el('div','scEv '+ecls, etxt));
           }
           row.appendChild(right);
+          // 自動オッズがあれば行をタップで展開表示
+          var orows = autoOddsRows(rc.raceId);
+          if(orows){
+            row.classList.add('has-odds');
+            var hint = el('div','oddsHint');
+            hint.appendChild(document.createTextNode('📸 オッズ '));
+            hint.appendChild(el('span','oChev','▾'));
+            mid.appendChild(hint);
+            var op = el('div','scOdds');
+            op.appendChild(oddsRow('人気','馬番','単勝','複勝', true));
+            orows.forEach(function(o){ op.appendChild(oddsRow(o.pop, o.sel, o.win, o.place, false)); });
+            row.appendChild(op);
+            row.addEventListener('click', function(){ row.classList.toggle('open'); });
+          }
           grp.appendChild(row);
         });
         ssec.appendChild(grp);
