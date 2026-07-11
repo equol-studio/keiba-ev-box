@@ -93,7 +93,12 @@ async function getOdds(raceId) {
   for (const [k, v] of Object.entries(o['2'] || {})) {
     const n = String(parseInt(k, 10));
     const lo = parseFloat(v && v[0]), hi = parseFloat(v && v[1]);
-    if (Number.isFinite(lo) && lo > 0) place[n] = [lo, Number.isFinite(hi) && hi > 0 ? hi : lo];
+    if (!Number.isFinite(lo) || lo <= 0) continue;
+    // サニティ: 単勝が高い(≥8)のに複勝下限が2.0未満は物理的にあり得ない。
+    // netkeiba前売/予想フィードの間欠的な不良値のため複勝を捨てる（単勝は生かす）。
+    const w = win[n];
+    if (Number.isFinite(w) && w >= 8 && lo < 2.0) continue;
+    place[n] = [lo, Number.isFinite(hi) && hi > 0 ? hi : lo];
   }
   if (!Object.keys(win).length) throw new Error('no win odds');
   return { win, place, src: j.status };

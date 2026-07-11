@@ -233,9 +233,13 @@
       var d = A.odds.races[raceId];
       if(!d || !d.win) return null;
       var rows = Object.keys(d.win).map(function(num){
+        var w = d.win[num];
         var pl = (d.place && d.place[num]) || null;
+        // サニティ: 単勝が高い(≥8)のに複勝下限が2.0未満は物理的にあり得ない
+        // netkeiba前売/予想フィードの間欠的な不良値 → 複勝は伏せる(—)
+        if(pl && isFinite(w) && w >= 8 && pl[0] < 2.0) pl = null;
         var placeTxt = pl ? (pl[0]===pl[1] ? String(pl[0]) : pl[0]+'–'+pl[1]) : '—';
-        return { num: num, win: d.win[num], place: placeTxt };
+        return { num: num, win: w, place: placeTxt };
       }).filter(function(r){ return isFinite(r.win) && r.win > 0; });
       rows.sort(function(a,b){ return a.win - b.win; });
       return rows.length ? rows.map(function(r,i){
