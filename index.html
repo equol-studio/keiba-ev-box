@@ -667,7 +667,17 @@
     }
 
     if('serviceWorker' in navigator && location.protocol === 'https:'){
-      navigator.serviceWorker.register('sw.js').catch(function(){});
+      // 新バージョンを確実に取り込む: 登録→即update確認→新SW有効化で自動リロード
+      // (iOSホーム画面PWAは自然に更新されないため、controllerchangeで1回だけreload)
+      var swRefreshed = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        if(swRefreshed) return; swRefreshed = true; window.location.reload();
+      });
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        reg.update(); // 起動ごとに新SWの有無を確認（新SWはinstall時にskipWaitingで即有効化）
+        // アプリを開きっぱなしでも定期的に更新を拾う
+        setInterval(function(){ reg.update(); }, 30 * 60 * 1000);
+      }).catch(function(){});
     }
   })();
   </script>

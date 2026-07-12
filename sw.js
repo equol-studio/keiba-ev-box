@@ -1,5 +1,5 @@
 // 競馬 期待値ボックス - service worker (ホスティング時のみ有効)
-const C = 'ev-box-v9';
+const C = 'ev-box-v10';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
